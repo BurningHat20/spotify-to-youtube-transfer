@@ -26,3 +26,5 @@ music_transfer.db
 # To avoid conflicts with other developers' editor settings
 .vscode/
 .idea/
+
+.cache
