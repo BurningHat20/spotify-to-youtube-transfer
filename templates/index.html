@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Music Transfer - Spotify to YouTube Music</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .gradient-bg {
+        background: linear-gradient(135deg, #1db954 0%, #ff0000 100%);
+        color: white;
+      }
+      .service-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: none;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .service-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+      }
+      .spotify-brand {
+        color: #1db954;
+      }
+      .youtube-brand {
+        color: #ff0000;
+      }
+      .progress-container {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+      .song-item {
+        transition: background-color 0.3s ease;
+      }
+      .song-item:hover {
+        background-color: #f8f9fa;
+      }
+      .status-badge {
+        font-size: 0.8em;
+      }
+      .hero-section {
+        padding: 60px 0;
+        text-align: center;
+      }
+      .feature-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+      }
+      .navbar-brand {
+        font-weight: bold;
+        font-size: 1.5rem;
+      }
+      .btn-spotify {
+        background-color: #1db954;
+        border-color: #1db954;
+        color: white;
+      }
+      .btn-spotify:hover {
+        background-color: #1ed760;
+        border-color: #1ed760;
+        color: white;
+      }
+      .btn-youtube {
+        background-color: #ff0000;
+        border-color: #ff0000;
+        color: white;
+      }
+      .btn-youtube:hover {
+        background-color: #cc0000;
+        border-color: #cc0000;
+        color: white;
+      }
+      .loading-spinner {
+        display: none;
+      }
+      .loading .loading-spinner {
+        display: inline-block;
+      }
+      .loading .btn-text {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="/">
+          <i class="fas fa-music me-2"></i>Music Transfer
+        </a>
+        <div class="navbar-nav ms-auto">
+          <div class="dropdown">
+            <button
+              class="btn btn-outline-light dropdown-toggle"
+              type="button"
+              data-bs-toggle="dropdown"
+            >
+              <i class="fas fa-cog"></i> Settings
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <a class="dropdown-item" href="/clear-session"
+                  ><i class="fas fa-trash me-2"></i>Clear Session</a
+                >
+              </li>
+              <li><hr class="dropdown-divider" /></li>
+              <li>
+                <a class="dropdown-item" href="/disconnect/spotify"
+                  ><i class="fab fa-spotify me-2"></i>Disconnect Spotify</a
+                >
+              </li>
+              <li>
+                <a class="dropdown-item" href="/disconnect/youtube"
+                  ><i class="fab fa-youtube me-2"></i>Disconnect YouTube</a
+                >
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %} {% if
+    messages %}
+    <div class="container mt-3">
+      {% for category, message in messages %}
+      <div
+        class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show"
+        role="alert"
+      >
+        {{ message }}
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+        ></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %} {% endwith %}
+
+    <!-- Hero Section -->
+    <div class="gradient-bg hero-section">
+      <div class="container">
+        <h1 class="display-4 fw-bold mb-4">
+          <i class="fas fa-exchange-alt me-3"></i>Music Transfer
+        </h1>
+        <p class="lead mb-4">
+          Transfer your liked songs from Spotify directly to YouTube Music
+          playlists
+        </p>
+        <div class="row mt-5">
+          <div class="col-md-4">
+            <div class="feature-icon spotify-brand">
+              <i class="fab fa-spotify"></i>
+            </div>
+            <h5>Connect Spotify</h5>
+            <p>Access your liked songs</p>
+          </div>
+          <div class="col-md-4">
+            <div class="feature-icon text-warning">
+              <i class="fas fa-search"></i>
+            </div>
+            <h5>Smart Matching</h5>
+            <p>Find songs on YouTube</p>
+          </div>
+          <div class="col-md-4">
+            <div class="feature-icon youtube-brand">
+              <i class="fab fa-youtube"></i>
+            </div>
+            <h5>Create Playlist</h5>
+            <p>Automatically add to YouTube</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container my-5">
+      <!-- Service Connection Cards -->
+      <div class="row mb-5">
+        <div class="col-lg-6 mb-4">
+          <div class="card service-card h-100">
+            <div class="card-body text-center">
+              <div class="mb-3">
+                <i
+                  class="fab fa-spotify spotify-brand"
+                  style="font-size: 3rem"
+                ></i>
+              </div>
+              <h5 class="card-title">Spotify</h5>
+              {% if spotify_connected %}
+              <div class="mb-3">
+                <span class="badge bg-success mb-2"
+                  ><i class="fas fa-check"></i> Connected</span
+                >
+                {% if spotify_user %}
+                <div
+                  class="d-flex align-items-center justify-content-center mt-2"
+                >
+                  {% if spotify_user.images %}
+                  <img
+                    src="{{ spotify_user.images[0].url }}"
+                    alt="Profile"
+                    class="rounded-circle me-2"
+                    width="30"
+                    height="30"
+                  />
+                  {% endif %}
+                  <small class="text-muted"
+                    >{{ spotify_user.display_name }}</small
+                  >
+                </div>
+                {% endif %}
+              </div>
+              <a
+                href="/disconnect/spotify"
+                class="btn btn-outline-danger btn-sm"
+                >Disconnect</a
+              >
+              {% else %}
+              <p class="card-text text-muted">
+                Connect to access your liked songs
+              </p>
+              <a href="/connect/spotify" class="btn btn-spotify">
+                <i class="fas fa-link me-2"></i>Connect Spotify
+              </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+          <div class="card service-card h-100">
+            <div class="card-body text-center">
+              <div class="mb-3">
+                <i
+                  class="fab fa-youtube youtube-brand"
+                  style="font-size: 3rem"
+                ></i>
+              </div>
+              <h5 class="card-title">YouTube Music</h5>
+              {% if youtube_connected %}
+              <div class="mb-3">
+                <span class="badge bg-success"
+                  ><i class="fas fa-check"></i> Connected</span
+                >
+              </div>
+              <a
+                href="/disconnect/youtube"
+                class="btn btn-outline-danger btn-sm"
+                >Disconnect</a
+              >
+              {% else %}
+              <p class="card-text text-muted">Connect to create playlists</p>
+              <a href="/connect/youtube" class="btn btn-youtube">
+                <i class="fas fa-link me-2"></i>Connect YouTube
+              </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transfer Section -->
+      {% if spotify_connected and youtube_connected %}
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-exchange-alt me-2"></i>Transfer Music
+          </h5>
+        </div>
+        <div class="card-body">
+          <!-- Stats Row -->
+          <div class="row mb-4" id="stats-row">
+            <div class="col-md-3">
+              <div class="text-center p-3 bg-light rounded">
+                <h4 class="text-primary mb-0" id="total-songs">0</h4>
+                <small class="text-muted">Total Songs</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="text-center p-3 bg-light rounded">
+                <h4 class="text-info mb-0" id="processed-songs">0</h4>
+                <small class="text-muted">Processed</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="text-center p-3 bg-light rounded">
+                <h4 class="text-success mb-0" id="successful-songs">0</h4>
+                <small class="text-muted">Successful</small>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="text-center p-3 bg-light rounded">
+                <h4 class="text-danger mb-0" id="failed-songs">0</h4>
+                <small class="text-muted">Failed</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <button
+                id="fetch-songs-btn"
+                class="btn btn-primary w-100"
+                onclick="fetchSongs()"
+              >
+                <span
+                  class="loading-spinner spinner-border spinner-border-sm me-2"
+                ></span>
+                <span class="btn-text"
+                  ><i class="fas fa-download me-2"></i>Fetch Liked Songs</span
+                >
+              </button>
+            </div>
+            <div class="col-md-6">
+              <div class="input-group">
+                <input
+                  type="text"
+                  class="form-control"
+                  id="playlist-name"
+                  placeholder="Playlist name (optional)"
+                />
+                <button
+                  id="start-transfer-btn"
+                  class="btn btn-success"
+                  onclick="startTransfer()"
+                  disabled
+                >
+                  <span
+                    class="loading-spinner spinner-border spinner-border-sm me-2"
+                  ></span>
+                  <span class="btn-text"
+                    ><i class="fas fa-play me-2"></i>Start Transfer</span
+                  >
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Progress Section -->
+          <div
+            id="progress-section"
+            class="progress-container"
+            style="display: none"
+          >
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="mb-0">Transfer Progress</h6>
+              <span id="progress-percentage" class="badge bg-primary">0%</span>
+            </div>
+            <div class="progress mb-3" style="height: 10px">
+              <div
+                id="progress-bar"
+                class="progress-bar progress-bar-striped progress-bar-animated"
+                role="progressbar"
+                style="width: 0%"
+              ></div>
+            </div>
+            <div id="current-song" class="text-muted">
+              <i class="fas fa-music me-2"></i>Ready to start...
+            </div>
+          </div>
+
+          <!-- Results Section -->
+          <div id="results-section" style="display: none">
+            <h6>Transfer Results</h6>
+            <div class="table-responsive">
+              <table class="table table-sm table-hover">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Song</th>
+                    <th>Artist</th>
+                    <th>YouTube Match</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="results-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Playlist Success -->
+      <div
+        id="playlist-success"
+        class="alert alert-success"
+        style="display: none"
+      >
+        <h5><i class="fas fa-check-circle me-2"></i>Transfer Complete!</h5>
+        <p class="mb-0">
+          Your playlist "<span id="created-playlist-name"></span>" has been
+          created on YouTube Music.
+        </p>
+        <a
+          id="playlist-link"
+          href="#"
+          target="_blank"
+          class="btn btn-sm btn-outline-success mt-2"
+        >
+          <i class="fab fa-youtube me-2"></i>View Playlist
+        </a>
+      </div>
+      {% endif %}
+
+      <!-- Setup Instructions -->
+      {% if not spotify_connected or not youtube_connected %}
+      <div class="card">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-info-circle me-2"></i>Getting Started
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <h6><i class="fas fa-cog me-2"></i>Setup Required</h6>
+              <ol class="list-group list-group-numbered list-group-flush">
+                <li class="list-group-item">
+                  Connect to Spotify to access your liked songs
+                </li>
+                <li class="list-group-item">
+                  Connect to YouTube to create playlists
+                </li>
+                <li class="list-group-item">
+                  Fetch your liked songs from Spotify
+                </li>
+                <li class="list-group-item">Start the transfer process</li>
+              </ol>
+            </div>
+            <div class="col-md-6">
+              <h6><i class="fas fa-shield-alt me-2"></i>Privacy & Security</h6>
+              <ul class="list-unstyled">
+                <li>
+                  <i class="fas fa-check text-success me-2"></i>Your data stays
+                  on your device
+                </li>
+                <li>
+                  <i class="fas fa-check text-success me-2"></i>No personal data
+                  is stored
+                </li>
+                <li>
+                  <i class="fas fa-check text-success me-2"></i>Direct API
+                  connections only
+                </li>
+                <li>
+                  <i class="fas fa-check text-success me-2"></i>OAuth2 secure
+                  authentication
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-light py-4 mt-5">
+      <div class="container text-center">
+        <p class="mb-0">
+          &copy; 2024 Music Transfer App - Transfer your music seamlessly
+        </p>
+        <small class="text-muted"
+          >Built with Flask, Bootstrap, and love for music</small
+        >
+      </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      let transferInProgress = false;
+      let transferData = null;
+
+      // Show loading state for buttons
+      function showLoading(buttonId) {
+        const btn = document.getElementById(buttonId);
+        btn.classList.add("loading");
+        btn.disabled = true;
+      }
+
+      function hideLoading(buttonId) {
+        const btn = document.getElementById(buttonId);
+        btn.classList.remove("loading");
+        btn.disabled = false;
+      }
+
+      // Show toast messages
+      function showToast(message, type = "info") {
+        const alertClass =
+          type === "error"
+            ? "alert-danger"
+            : type === "success"
+            ? "alert-success"
+            : "alert-info";
+        const toast = document.createElement("div");
+        toast.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+        toast.style.cssText =
+          "top: 20px; right: 20px; z-index: 9999; min-width: 300px;";
+        toast.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.remove();
+          }
+        }, 5000);
+      }
+
+      // Fetch songs from Spotify
+      async function fetchSongs() {
+        showLoading("fetch-songs-btn");
+
+        try {
+          const response = await fetch("/api/fetch-songs");
+          const data = await response.json();
+
+          if (data.success) {
+            document.getElementById("total-songs").textContent = data.count;
+            document.getElementById("start-transfer-btn").disabled = false;
+            showToast(
+              `Successfully fetched ${data.count} liked songs!`,
+              "success"
+            );
+          } else {
+            showToast(data.error || "Failed to fetch songs", "error");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          showToast("Error fetching songs", "error");
+        }
+
+        hideLoading("fetch-songs-btn");
+      }
+
+      // Start transfer process
+      async function startTransfer() {
+        const playlistName =
+          document.getElementById("playlist-name").value ||
+          `Spotify Liked Songs - ${new Date().toLocaleDateString()}`;
+
+        showLoading("start-transfer-btn");
+
+        try {
+          const response = await fetch("/api/transfer", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              playlist_name: playlistName,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            transferInProgress = true;
+            transferData = data;
+            document.getElementById("progress-section").style.display = "block";
+            document.getElementById("results-section").style.display = "block";
+
+            showToast(`Created playlist: ${data.playlist_name}`, "success");
+
+            // Start processing songs
+            await processSongs();
+          } else {
+            showToast(data.error || "Failed to start transfer", "error");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          showToast("Error starting transfer", "error");
+        }
+
+        hideLoading("start-transfer-btn");
+      }
+
+      // Process songs one by one
+      async function processSongs() {
+        const resultsTable = document.getElementById("results-table");
+
+        while (transferInProgress) {
+          try {
+            const response = await fetch("/api/transfer/process", {
+              method: "POST",
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              // Update progress
+              const progress = data.progress;
+              document.getElementById("processed-songs").textContent =
+                progress.current;
+              document.getElementById("successful-songs").textContent =
+                progress.successful;
+              document.getElementById("failed-songs").textContent =
+                progress.failed;
+
+              const percentage = Math.round(progress.percentage);
+              document.getElementById(
+                "progress-percentage"
+              ).textContent = `${percentage}%`;
+              document.getElementById(
+                "progress-bar"
+              ).style.width = `${percentage}%`;
+
+              // Update current song
+              const result = data.result;
+              document.getElementById(
+                "current-song"
+              ).innerHTML = `<i class="fas fa-music me-2"></i>Processing: ${result.song.name} by ${result.song.artist}`;
+
+              // Add result to table
+              const row = resultsTable.insertRow(0);
+              const statusBadge = getStatusBadge(result.status);
+              const youtubeMatch = result.youtube_match
+                ? `<a href="https://youtube.com/watch?v=${result.youtube_match.video_id}" target="_blank" class="text-decoration-none">
+                                ${result.youtube_match.title}
+                            </a>`
+                : "Not found";
+
+              row.innerHTML = `
+                            <td><strong>${result.song.name}</strong></td>
+                            <td>${result.song.artist}</td>
+                            <td>${youtubeMatch}</td>
+                            <td>${statusBadge}</td>
+                        `;
+
+              // Check if completed
+              if (data.completed) {
+                transferInProgress = false;
+                document.getElementById(
+                  "current-song"
+                ).innerHTML = `<i class="fas fa-check text-success me-2"></i>Transfer completed!`;
+
+                // Show success message
+                document.getElementById("created-playlist-name").textContent =
+                  transferData.playlist_name;
+                document.getElementById(
+                  "playlist-link"
+                ).href = `https://www.youtube.com/playlist?list=${transferData.playlist_id}`;
+                document.getElementById("playlist-success").style.display =
+                  "block";
+
+                showToast(
+                  `Transfer completed! ${progress.successful} songs added successfully.`,
+                  "success"
+                );
+              }
+            } else {
+              transferInProgress = false;
+              showToast(data.error || "Error during processing", "error");
+            }
+          } catch (error) {
+            console.error("Error:", error);
+            transferInProgress = false;
+            showToast("Error processing songs", "error");
+          }
+
+          // Small delay between requests
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+      }
+
+      // Get status badge HTML
+      function getStatusBadge(status) {
+        switch (status) {
+          case "success":
+            return '<span class="badge bg-success status-badge"><i class="fas fa-check"></i> Added</span>';
+          case "not_found":
+            return '<span class="badge bg-warning status-badge"><i class="fas fa-search"></i> Not Found</span>';
+          case "add_failed":
+            return '<span class="badge bg-danger status-badge"><i class="fas fa-times"></i> Add Failed</span>';
+          default:
+            return '<span class="badge bg-secondary status-badge">Unknown</span>';
+        }
+      }
+
+      // Auto-dismiss alerts after 5 seconds
+      document.addEventListener("DOMContentLoaded", function () {
+        setTimeout(() => {
+          const alerts = document.querySelectorAll(
+            ".alert:not(.alert-dismissible)"
+          );
+          alerts.forEach((alert) => {
+            if (alert.parentNode) {
+              alert.remove();
+            }
+          });
+        }, 5000);
+      });
+    </script>
+  </body>
+</html>

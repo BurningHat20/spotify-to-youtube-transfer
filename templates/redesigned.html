@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Music Transfer - Spotify to YouTube Music</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css"
+      rel="stylesheet"
+    />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              spotify: "#1DB954",
+              youtube: "#FF0000",
+              dark: "#121212",
+              light: "#F8F9FA",
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+    <!-- Navigation -->
+    <nav class="bg-dark py-4 shadow-md">
+      <div class="container mx-auto px-4 flex justify-between items-center">
+        <a class="text-white text-xl font-bold flex items-center" href="/">
+          <i class="ri-music-fill mr-2"></i>Music Transfer
+        </a>
+        <div class="relative">
+          <button
+            class="text-white bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg flex items-center transition-colors duration-200"
+            id="settings-button"
+          >
+            <i class="ri-settings-3-line mr-2"></i>Settings
+            <i class="ri-arrow-down-s-line ml-2"></i>
+          </button>
+          <div
+            class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 hidden z-10"
+            id="settings-menu"
+          >
+            <a
+              class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+              href="/clear-session"
+            >
+              <i class="ri-delete-bin-line mr-2"></i>Clear Session
+            </a>
+            <div class="border-t border-gray-200 my-1"></div>
+            <a
+              class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+              href="/disconnect/spotify"
+            >
+              <i class="ri-spotify-fill mr-2 text-spotify"></i>Disconnect
+              Spotify
+            </a>
+            <a
+              class="block px-4 py-2 text-gray-700 hover:bg-gray-100"
+              href="/disconnect/youtube"
+            >
+              <i class="ri-youtube-fill mr-2 text-youtube"></i>Disconnect
+              YouTube
+            </a>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div class="container mx-auto px-4 mt-4" id="flash-messages">
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div
+        class="rounded-lg p-4 mb-4 flex items-center justify-between {{ 'bg-red-100 text-red-700' if category == 'error' else 'bg-green-100 text-green-700' if category == 'success' else 'bg-blue-100 text-blue-700' }}"
+      >
+        <span>{{ message }}</span>
+        <button
+          type="button"
+          class="focus:outline-none"
+          onclick="this.parentElement.remove()"
+        >
+          <i class="ri-close-line"></i>
+        </button>
+      </div>
+      {% endfor %} {% endif %} {% endwith %}
+    </div>
+
+    <!-- Hero Section -->
+    <section class="bg-gradient-to-r from-spotify to-youtube text-white py-16">
+      <div class="container mx-auto px-4 text-center">
+        <h1 class="text-4xl font-bold mb-6 flex items-center justify-center">
+          <i class="ri-repeat-line mr-3 text-5xl"></i>Music Transfer
+        </h1>
+        <p class="text-xl mb-12 max-w-2xl mx-auto">
+          Transfer your liked songs from Spotify directly to YouTube Music
+          playlists
+        </p>
+        <div class="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div class="flex flex-col items-center">
+            <i class="ri-spotify-fill text-5xl mb-4 text-white"></i>
+            <h3 class="text-lg font-semibold">Connect Spotify</h3>
+            <p class="text-gray-100">Access your liked songs</p>
+          </div>
+          <div class="flex flex-col items-center">
+            <i class="ri-search-line text-5xl mb-4 text-white"></i>
+            <h3 class="text-lg font-semibold">Smart Matching</h3>
+            <p class="text-gray-100">Find songs on YouTube</p>
+          </div>
+          <div class="flex flex-col items-center">
+            <i class="ri-youtube-fill text-5xl mb-4 text-white"></i>
+            <h3 class="text-lg font-semibold">Create Playlist</h3>
+            <p class="text-gray-100">Automatically add to YouTube</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-12 flex-grow">
+      <!-- Service Connection Cards -->
+      <div class="grid md:grid-cols-2 gap-6 mb-10">
+        <!-- Spotify Card -->
+        <div
+          class="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden"
+        >
+          <div class="p-6 flex flex-col items-center">
+            <i class="ri-spotify-fill text-5xl text-spotify mb-4"></i>
+            <h3 class="text-xl font-semibold mb-3">Spotify</h3>
+
+            {% if spotify_connected %}
+            <div class="flex items-center justify-center mb-4">
+              <span
+                class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800"
+              >
+                <i class="ri-check-line mr-1"></i>Connected
+              </span>
+            </div>
+
+            {% if spotify_user %}
+            <div class="flex items-center justify-center mb-4">
+              {% if spotify_user.images %}
+              <img
+                src="{{ spotify_user.images[0].url }}"
+                alt="Profile"
+                class="rounded-full w-8 h-8 mr-2"
+              />
+              {% endif %}
+              <span class="text-gray-600 text-sm"
+                >{{ spotify_user.display_name }}</span
+              >
+            </div>
+            {% endif %}
+
+            <a
+              href="/disconnect/spotify"
+              class="text-red-600 hover:text-red-800 text-sm font-medium transition-colors duration-200 flex items-center"
+            >
+              <i class="ri-logout-box-line mr-1"></i>Disconnect
+            </a>
+            {% else %}
+            <p class="text-gray-500 mb-4 text-center">
+              Connect to access your liked songs
+            </p>
+            <a
+              href="/connect/spotify"
+              class="inline-flex items-center px-4 py-2 rounded-lg bg-spotify hover:bg-opacity-90 text-white transition-colors duration-200"
+            >
+              <i class="ri-link mr-2"></i>Connect Spotify
+            </a>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- YouTube Card -->
+        <div
+          class="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden"
+        >
+          <div class="p-6 flex flex-col items-center">
+            <i class="ri-youtube-fill text-5xl text-youtube mb-4"></i>
+            <h3 class="text-xl font-semibold mb-3">YouTube Music</h3>
+
+            {% if youtube_connected %}
+            <div class="flex items-center justify-center mb-4">
+              <span
+                class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800"
+              >
+                <i class="ri-check-line mr-1"></i>Connected
+              </span>
+            </div>
+
+            <a
+              href="/disconnect/youtube"
+              class="text-red-600 hover:text-red-800 text-sm font-medium transition-colors duration-200 flex items-center"
+            >
+              <i class="ri-logout-box-line mr-1"></i>Disconnect
+            </a>
+            {% else %}
+            <p class="text-gray-500 mb-4 text-center">
+              Connect to create playlists
+            </p>
+            <a
+              href="/connect/youtube"
+              class="inline-flex items-center px-4 py-2 rounded-lg bg-youtube hover:bg-opacity-90 text-white transition-colors duration-200"
+            >
+              <i class="ri-link mr-2"></i>Connect YouTube
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Transfer Section -->
+      {% if spotify_connected and youtube_connected %}
+      <div class="bg-white rounded-xl shadow-sm overflow-hidden mb-8">
+        <div class="bg-indigo-600 px-6 py-4">
+          <h3 class="text-white font-semibold flex items-center">
+            <i class="ri-repeat-line mr-2"></i>Transfer Music
+          </h3>
+        </div>
+        <div class="p-6">
+          <!-- Stats Row -->
+          <div
+            class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"
+            id="stats-row"
+          >
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+              <h4
+                class="text-2xl font-semibold text-indigo-600 mb-1"
+                id="total-songs"
+              >
+                0
+              </h4>
+              <p class="text-sm text-gray-500">Total Songs</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+              <h4
+                class="text-2xl font-semibold text-blue-600 mb-1"
+                id="processed-songs"
+              >
+                0
+              </h4>
+              <p class="text-sm text-gray-500">Processed</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+              <h4
+                class="text-2xl font-semibold text-green-600 mb-1"
+                id="successful-songs"
+              >
+                0
+              </h4>
+              <p class="text-sm text-gray-500">Successful</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+              <h4
+                class="text-2xl font-semibold text-red-600 mb-1"
+                id="failed-songs"
+              >
+                0
+              </h4>
+              <p class="text-sm text-gray-500">Failed</p>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="grid md:grid-cols-2 gap-4 mb-6">
+            <button
+              id="fetch-songs-btn"
+              class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-3 rounded-lg transition-colors duration-200 flex items-center justify-center"
+              onclick="fetchSongs()"
+            >
+              <span class="loading-spinner mr-2 hidden">
+                <svg
+                  class="animate-spin h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+              </span>
+              <span class="btn-text flex items-center">
+                <i class="ri-download-line mr-2"></i>Fetch Liked Songs
+              </span>
+            </button>
+            <div class="flex">
+              <input
+                type="text"
+                id="playlist-name"
+                placeholder="Playlist name (optional)"
+                class="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              />
+              <button
+                id="start-transfer-btn"
+                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-r-lg transition-colors duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                onclick="startTransfer()"
+                disabled
+              >
+                <span class="loading-spinner mr-2 hidden">
+                  <svg
+                    class="animate-spin h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      class="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      stroke-width="4"
+                    ></circle>
+                    <path
+                      class="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                </span>
+                <span class="btn-text flex items-center">
+                  <i class="ri-play-fill mr-2"></i>Start Transfer
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Progress Section -->
+          <div
+            id="progress-section"
+            class="bg-gray-50 rounded-lg p-6 mb-6 hidden"
+          >
+            <div class="flex justify-between items-center mb-2">
+              <h4 class="font-medium text-gray-700">Transfer Progress</h4>
+              <span
+                id="progress-percentage"
+                class="bg-indigo-600 text-white text-xs px-2 py-1 rounded-full"
+                >0%</span
+              >
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2 mb-4">
+              <div
+                id="progress-bar"
+                class="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                style="width: 0%"
+              ></div>
+            </div>
+            <div
+              id="current-song"
+              class="text-gray-600 text-sm flex items-center"
+            >
+              <i class="ri-music-fill mr-2"></i>Ready to start...
+            </div>
+          </div>
+
+          <!-- Results Section -->
+          <div id="results-section" class="hidden">
+            <h4 class="font-medium text-gray-700 mb-3">Transfer Results</h4>
+            <div class="overflow-x-auto">
+              <table class="min-w-full">
+                <thead>
+                  <tr class="bg-gray-100">
+                    <th
+                      class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider"
+                    >
+                      Song
+                    </th>
+                    <th
+                      class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider"
+                    >
+                      Artist
+                    </th>
+                    <th
+                      class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider"
+                    >
+                      YouTube Match
+                    </th>
+                    <th
+                      class="px-4 py-2 text-left text-xs font-medium text-gray-600 uppercase tracking-wider"
+                    >
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="results-table"
+                  class="divide-y divide-gray-200 bg-white"
+                ></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Playlist Success -->
+      <div
+        id="playlist-success"
+        class="bg-green-100 border border-green-200 text-green-800 rounded-lg p-4 mb-6 hidden"
+      >
+        <h4 class="font-semibold flex items-center mb-2">
+          <i class="ri-check-line mr-2"></i>Transfer Complete!
+        </h4>
+        <p class="mb-3">
+          Your playlist "<span id="created-playlist-name"></span>" has been
+          created on YouTube Music.
+        </p>
+        <a
+          id="playlist-link"
+          href="#"
+          target="_blank"
+          class="inline-flex items-center px-3 py-1 border border-green-600 text-green-600 hover:bg-green-600 hover:text-white rounded-lg transition-colors duration-200 text-sm"
+        >
+          <i class="ri-youtube-fill mr-2"></i>View Playlist
+        </a>
+      </div>
+      {% endif %}
+
+      <!-- Setup Instructions -->
+      {% if not spotify_connected or not youtube_connected %}
+      <div class="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div class="bg-blue-600 px-6 py-4">
+          <h3 class="text-white font-semibold flex items-center">
+            <i class="ri-information-line mr-2"></i>Getting Started
+          </h3>
+        </div>
+        <div class="p-6">
+          <div class="grid md:grid-cols-2 gap-6">
+            <div>
+              <h4 class="font-medium text-gray-800 flex items-center mb-4">
+                <i class="ri-settings-line mr-2 text-gray-600"></i>Setup
+                Required
+              </h4>
+              <ol class="space-y-2 ml-6 list-decimal text-gray-700">
+                <li class="pl-2">
+                  Connect to Spotify to access your liked songs
+                </li>
+                <li class="pl-2">Connect to YouTube to create playlists</li>
+                <li class="pl-2">Fetch your liked songs from Spotify</li>
+                <li class="pl-2">Start the transfer process</li>
+              </ol>
+            </div>
+            <div>
+              <h4 class="font-medium text-gray-800 flex items-center mb-4">
+                <i class="ri-shield-line mr-2 text-gray-600"></i>Privacy &
+                Security
+              </h4>
+              <ul class="space-y-2 text-gray-700">
+                <li class="flex items-center">
+                  <i class="ri-check-line text-green-600 mr-2"></i>
+                  Your data stays on your device
+                </li>
+                <li class="flex items-center">
+                  <i class="ri-check-line text-green-600 mr-2"></i>
+                  No personal data is stored
+                </li>
+                <li class="flex items-center">
+                  <i class="ri-check-line text-green-600 mr-2"></i>
+                  Direct API connections only
+                </li>
+                <li class="flex items-center">
+                  <i class="ri-check-line text-green-600 mr-2"></i>
+                  OAuth2 secure authentication
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-6 mt-auto">
+      <div class="container mx-auto px-4 text-center">
+        <p class="mb-1">
+          &copy; 2024 Music Transfer App - Transfer your music seamlessly
+        </p>
+        <p class="text-gray-400 text-sm">
+          Built with Flask, Tailwind, and love for music
+        </p>
+      </div>
+    </footer>
+
+    <script>
+      // Toggle settings dropdown
+      document
+        .getElementById("settings-button")
+        .addEventListener("click", function () {
+          document.getElementById("settings-menu").classList.toggle("hidden");
+        });
+
+      // Close the dropdown when clicking outside
+      document.addEventListener("click", function (event) {
+        const dropdown = document.getElementById("settings-menu");
+        const button = document.getElementById("settings-button");
+        if (
+          !button.contains(event.target) &&
+          !dropdown.contains(event.target) &&
+          !dropdown.classList.contains("hidden")
+        ) {
+          dropdown.classList.add("hidden");
+        }
+      });
+
+      let transferInProgress = false;
+      let transferData = null;
+
+      // Show loading state for buttons
+      function showLoading(buttonId) {
+        const btn = document.getElementById(buttonId);
+        btn.disabled = true;
+        btn.querySelector(".loading-spinner").classList.remove("hidden");
+        btn.querySelector(".btn-text").classList.add("opacity-75");
+      }
+
+      function hideLoading(buttonId) {
+        const btn = document.getElementById(buttonId);
+        btn.disabled = false;
+        btn.querySelector(".loading-spinner").classList.add("hidden");
+        btn.querySelector(".btn-text").classList.remove("opacity-75");
+      }
+
+      // Show toast messages
+      function showToast(message, type = "info") {
+        const alertClass =
+          type === "error"
+            ? "bg-red-100 text-red-700"
+            : type === "success"
+            ? "bg-green-100 text-green-700"
+            : "bg-blue-100 text-blue-700";
+
+        const toast = document.createElement("div");
+        toast.className = `rounded-lg p-4 mb-4 flex items-center justify-between ${alertClass} fixed top-5 right-5 z-50 shadow-lg max-w-md`;
+        toast.innerHTML = `
+        <span>${message}</span>
+        <button type="button" class="focus:outline-none" onclick="this.parentElement.remove()">
+          <i class="ri-close-line"></i>
+        </button>
+      `;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+          if (toast.parentNode) {
+            toast.remove();
+          }
+        }, 5000);
+      }
+
+      // Fetch songs from Spotify
+      async function fetchSongs() {
+        showLoading("fetch-songs-btn");
+
+        try {
+          const response = await fetch("/api/fetch-songs");
+          const data = await response.json();
+
+          if (data.success) {
+            document.getElementById("total-songs").textContent = data.count;
+            document.getElementById("start-transfer-btn").disabled = false;
+            showToast(
+              `Successfully fetched ${data.count} liked songs!`,
+              "success"
+            );
+          } else {
+            showToast(data.error || "Failed to fetch songs", "error");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          showToast("Error fetching songs", "error");
+        }
+
+        hideLoading("fetch-songs-btn");
+      }
+
+      // Start transfer process
+      async function startTransfer() {
+        const playlistName =
+          document.getElementById("playlist-name").value ||
+          `Spotify Liked Songs - ${new Date().toLocaleDateString()}`;
+
+        showLoading("start-transfer-btn");
+
+        try {
+          const response = await fetch("/api/transfer", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              playlist_name: playlistName,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            transferInProgress = true;
+            transferData = data;
+            document
+              .getElementById("progress-section")
+              .classList.remove("hidden");
+            document
+              .getElementById("results-section")
+              .classList.remove("hidden");
+
+            showToast(`Created playlist: ${data.playlist_name}`, "success");
+
+            // Start processing songs
+            await processSongs();
+          } else {
+            showToast(data.error || "Failed to start transfer", "error");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          showToast("Error starting transfer", "error");
+        }
+
+        hideLoading("start-transfer-btn");
+      }
+
+      // Process songs one by one
+      async function processSongs() {
+        const resultsTable = document.getElementById("results-table");
+
+        while (transferInProgress) {
+          try {
+            const response = await fetch("/api/transfer/process", {
+              method: "POST",
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              // Update progress
+              const progress = data.progress;
+              document.getElementById("processed-songs").textContent =
+                progress.current;
+              document.getElementById("successful-songs").textContent =
+                progress.successful;
+              document.getElementById("failed-songs").textContent =
+                progress.failed;
+
+              const percentage = Math.round(progress.percentage);
+              document.getElementById(
+                "progress-percentage"
+              ).textContent = `${percentage}%`;
+              document.getElementById(
+                "progress-bar"
+              ).style.width = `${percentage}%`;
+
+              // Update current song
+              const result = data.result;
+              document.getElementById("current-song").innerHTML = `
+              <i class="ri-music-fill mr-2"></i>Processing: ${result.song.name} by ${result.song.artist}
+            `;
+
+              // Add result to table
+              const row = document.createElement("tr");
+              row.className = "hover:bg-gray-50";
+
+              const statusBadge = getStatusBadge(result.status);
+              const youtubeMatch = result.youtube_match
+                ? `<a href="https://youtube.com/watch?v=${result.youtube_match.video_id}" target="_blank" class="text-blue-600 hover:text-blue-800 hover:underline">
+                  ${result.youtube_match.title}
+                </a>`
+                : "Not found";
+
+              row.innerHTML = `
+              <td class="px-4 py-3 whitespace-nowrap"><span class="font-medium">${result.song.name}</span></td>
+              <td class="px-4 py-3 whitespace-nowrap">${result.song.artist}</td>
+              <td class="px-4 py-3">${youtubeMatch}</td>
+              <td class="px-4 py-3 whitespace-nowrap">${statusBadge}</td>
+            `;
+
+              // Insert at the beginning of the table
+              if (resultsTable.firstChild) {
+                resultsTable.insertBefore(row, resultsTable.firstChild);
+              } else {
+                resultsTable.appendChild(row);
+              }
+
+              // Check if completed
+              if (data.completed) {
+                transferInProgress = false;
+                document.getElementById("current-song").innerHTML = `
+                <i class="ri-check-line text-green-600 mr-2"></i>Transfer completed!
+              `;
+
+                // Show success message
+                document.getElementById("created-playlist-name").textContent =
+                  transferData.playlist_name;
+                document.getElementById(
+                  "playlist-link"
+                ).href = `https://www.youtube.com/playlist?list=${transferData.playlist_id}`;
+                document
+                  .getElementById("playlist-success")
+                  .classList.remove("hidden");
+
+                showToast(
+                  `Transfer completed! ${progress.successful} songs added successfully.`,
+                  "success"
+                );
+              }
+            } else {
+              transferInProgress = false;
+              showToast(data.error || "Error during processing", "error");
+            }
+          } catch (error) {
+            console.error("Error:", error);
+            transferInProgress = false;
+            showToast("Error processing songs", "error");
+          }
+
+          // Small delay between requests
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+      }
+
+      // Get status badge HTML
+      function getStatusBadge(status) {
+        switch (status) {
+          case "success":
+            return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"><i class="ri-check-line mr-1"></i>Added</span>';
+          case "not_found":
+            return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800"><i class="ri-search-line mr-1"></i>Not Found</span>';
+          case "add_failed":
+            return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"><i class="ri-close-line mr-1"></i>Failed</span>';
+          default:
+            return '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Unknown</span>';
+        }
+      }
+
+      // Auto-dismiss alerts after 5 seconds
+      document.addEventListener("DOMContentLoaded", function () {
+        setTimeout(() => {
+          const alerts = document.querySelectorAll(
+            "#flash-messages .rounded-lg"
+          );
+          alerts.forEach((alert) => {
+            if (alert.parentNode) {
+              alert.remove();
+            }
+          });
+        }, 5000);
+      });
+    </script>
+  </body>
+</html>
